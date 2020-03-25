@@ -7,7 +7,6 @@ library(tidyverse)
 library(RSQLite)
 db <- DBI::dbConnect(RSQLite::SQLite(), "lahman2016.sqlite")
 DBI::dbListTables(db)
-DBI::dbDisconnect(db)
 ```
 
 ### Problem 1 Using SQL, write a query to compute the total payroll and winning percentage (number of wins / number of games * 100) for each team (that is, for each teamID and yearID combination). You should include other columns that will help when performing EDA later on (e.g., franchise ids, number of wins, number of games).
@@ -118,10 +117,21 @@ group by year, team
 ```
 
 ```{r time_periods}
+winpay$year_range <- cut(winpay$year, breaks=5)
+winpay %>% 
+  mutate(log_payroll = log(payroll)) %>% 
+  ggplot(aes(x=log_payroll, y=win_percentage)) + 
+  facet_grid(~year_range) +
+  geom_point() +
+  geom_smooth(method=lm)
+
+```
+
+```{r}
+
 library(gridExtra)
 
 data_ranges <- split(winpay, cut(winpay$year, breaks = 5))
-
 p1 <- data_ranges$`(1990,1995]` %>% 
   mutate(log_payroll = log(payroll)) %>% 
   ggplot(aes(x=log_payroll, y=win_percentage)) +
@@ -159,4 +169,4 @@ grid.arrange(p1, p2, p3, p4, p5, nrow=3)
 
 #### Question 2. What can you say about team payrolls across these periods? Are there any teams that standout as being particularly good at paying for wins across these time periods? What can you say about the Oakland A’s spending efficiency across these time periods (labeling some points in the scatterplot can help interpretation).
 
-I can say that as a general trend, win percentages have a positive increase as a team's payroll increases, but there's so much variance in these plots that it is hard to call this a causation relationship. It seems that the time period when these two variables were most strongly correlated was the 1995 to 2000 time period.
+I can say that as a general trend, win percentages increase as a team's payroll increases, but there's so much variance in these plots that it is hard to call this a causation relationship. It seems that the time period when these two variables were most strongly correlated was the 1995 to 2000 time period.
