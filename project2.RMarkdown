@@ -106,24 +106,32 @@ max_df %>%
 select Salaries.yearID as year, 
   Teams.teamID as team, 
   (cast(sum(Teams.W) as float) / sum(Teams.G))*100 as win_percentage,
+  franchName,
   sum(Salaries.salary) as payroll
 from Salaries
 join Teams
 on Salaries.teamID = Teams.teamID 
 and Salaries.yearID = Teams.yearID
+join TeamsFranchises
+on Teams.franchID = TeamsFranchises.franchID
 where year between 1990 and 2014
 group by year, team
 
 ```
 
+
 ```{r time_periods}
+
 winpay$year_range <- cut(winpay$year, breaks=5)
+winpay$Franchise[winpay$franchName != 'Oakland Athletics'] <- 'Other'
+winpay$Franchise[winpay$franchName == 'Oakland Athletics'] <- 'Oakland'
 winpay %>% 
-  mutate(log_payroll = log(payroll)) %>% 
-  ggplot(aes(x=log_payroll, y=win_percentage)) + 
+  mutate(log_payroll = log(payroll)) %>%
+  ggplot(aes(x=log_payroll, y=win_percentage, color=Franchise)) + 
+  labs(title='Win Percentage vs Payroll') +
   facet_grid(~year_range) +
   geom_point() +
-  geom_smooth(method=lm)
+  geom_smooth(method=lm, color='blue')
 
 ```
 
@@ -169,4 +177,37 @@ grid.arrange(p1, p2, p3, p4, p5, nrow=3)
 
 #### Question 2. What can you say about team payrolls across these periods? Are there any teams that standout as being particularly good at paying for wins across these time periods? What can you say about the Oakland A’s spending efficiency across these time periods (labeling some points in the scatterplot can help interpretation).
 
-I can say that as a general trend, win percentages increase as a team's payroll increases, but there's so much variance in these plots that it is hard to call this a causation relationship. It seems that the time period when these two variables were most strongly correlated was the 1995 to 2000 time period.
+I can say that as a general trend, win percentages increase as a team's payroll increases, but there's so much variance in these plots that it is hard to call this a strong causation relationship. It seems that the time period when these two variables were most strongly correlated was the 1995 to 2000 time period. The Oakland A's spending efficiency seems to be solid. Acroess the five time periods, they generally end to be either above the mean, or very close to it, except for the 1990-1995 time range.
+
+# Data transformations
+
+## Standardization across years
+
+### Problem 5. Write code to create a new variable in your dataset that standardizes payroll conditioned on year.
+
+```{r standardize}
+payroll_mew = array()
+payroll_sigma = array()
+for(i in 1990:2014) {
+  payroll_mew[i - 1990 + 1] <- mean(filter(winpay, year==i)$payroll)
+  payroll_sigma[i - 1990 + 1] <- sd(filter(winpay, year==i)$payroll)
+}
+
+
+winpay <- winpay %>% 
+  mutate(Z = (payroll - payroll_mew[year - 1990 + 1]) / payroll_sigma[year - 1990 + 1])
+
+```
+
+### Problem 6. Repeat the same plots as Problem 4, but use this new standardized payroll variable.
+
+
+```{r standardized_plot}
+winpay %>% 
+  ggplot(aes(x=Z, y=win_percentage, color=Franchise)) + 
+  labs(title='Win Percentage vs Payroll Z-Score') +
+  facet_grid(~year_range) +
+  geom_point() +
+  geom_smooth(method=lm, color='blue')
+
+```
