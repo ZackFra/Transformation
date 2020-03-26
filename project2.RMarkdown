@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 # Data Wrangling and Exploratory Data Analysis
 
 
@@ -135,46 +140,6 @@ winpay %>%
 
 ```
 
-```{r}
-
-library(gridExtra)
-
-data_ranges <- split(winpay, cut(winpay$year, breaks = 5))
-p1 <- data_ranges$`(1990,1995]` %>% 
-  mutate(log_payroll = log(payroll)) %>% 
-  ggplot(aes(x=log_payroll, y=win_percentage)) +
-  ggtitle('(1990,1995]') +
-  geom_point() + 
-  geom_smooth(method=lm)
-p2 <- data_ranges$`(1995,2000]` %>% 
-  mutate(log_payroll = log(payroll)) %>% 
-  ggplot(aes(x=log_payroll, y=win_percentage)) +
-  ggtitle('(1995,2000]') +
-  geom_point() +
-  geom_smooth(method=lm)
-p3 <- data_ranges$`(2000,2004]` %>% 
-  mutate(log_payroll = log(payroll)) %>% 
-  ggplot(aes(x=log_payroll, y=win_percentage)) +
-  ggtitle('(2000,2004]') +
-  geom_point() +
-  geom_smooth(method=lm)
-p4 <- data_ranges$`(2004,2009]` %>% 
-  mutate(log_payroll = log(payroll)) %>% 
-  ggplot(aes(x=log_payroll, y=win_percentage)) +
-  ggtitle('(2004,2009]') +
-  geom_point() +
-  geom_smooth(method=lm)
-p5 <- data_ranges$`(2009,2014]` %>% 
-  mutate(log_payroll = log(payroll)) %>% 
-  ggplot(aes(x=log_payroll, y=win_percentage)) +
-  ggtitle('(2009,2014]') +
-  geom_point() +
-  geom_smooth(method=lm)
-
-grid.arrange(p1, p2, p3, p4, p5, nrow=3)
-
-```
-
 #### Question 2. What can you say about team payrolls across these periods? Are there any teams that standout as being particularly good at paying for wins across these time periods? What can you say about the Oakland A’s spending efficiency across these time periods (labeling some points in the scatterplot can help interpretation).
 
 I can say that as a general trend, win percentages increase as a team's payroll increases, but there's so much variance in these plots that it is hard to call this a strong causation relationship. It seems that the time period when these two variables were most strongly correlated was the 1995 to 2000 time period. The Oakland A's spending efficiency seems to be solid. Acroess the five time periods, they generally end to be either above the mean, or very close to it, except for the 1990-1995 time range.
@@ -195,7 +160,7 @@ for(i in 1990:2014) {
 
 
 winpay <- winpay %>% 
-  mutate(Z = (payroll - payroll_mew[year - 1990 + 1]) / payroll_sigma[year - 1990 + 1])
+  mutate(Payroll_Z_Score = (payroll - payroll_mew[year - 1990 + 1]) / payroll_sigma[year - 1990 + 1])
 
 ```
 
@@ -204,10 +169,41 @@ winpay <- winpay %>%
 
 ```{r standardized_plot}
 winpay %>% 
-  ggplot(aes(x=Z, y=win_percentage, color=Franchise)) + 
+  ggplot(aes(x=Payroll_Z_Score, y=win_percentage, color=Franchise)) + 
   labs(title='Win Percentage vs Payroll Z-Score') +
   facet_grid(~year_range) +
   geom_point() +
   geom_smooth(method=lm, color='blue')
 
 ```
+
+#### Question 3. Discuss how the plots from Problem 4 and Problem 6 reflect the transformation you did on the payroll variable. Consider data range, center and spread along with observed correlation in your discussion. Some of these change after the transformation, others don’t.
+
+# Expected wins
+
+### Problem 7. Make a single scatter plot of winning percentage (y-axis) vs. standardized payroll (x-axis). Add a regression line to highlight the relationship (again using geom_smooth(method=lm)).
+
+```{r}
+winpay %>% 
+  ggplot(aes(x=Payroll_Z_Score, y=win_percentage)) +
+  geom_point() +
+  geom_smooth(method=lm)
+```
+
+# Spending efficiency
+
+### Problem 8. Write code to calculate spending efficiency for each team. Make a line plot with year on the x-axis and efficiency on the y-axis. A good set of teams to plot are Oakland, the New York Yankees, Boston, Atlanta and Tampa Bay (teamIDs OAK, BOS, NYA, ATL, TBA). That plot can be hard to read since there is so much year to year variation for each team. One way to improve it is to use geom_smooth instead of geom_line.
+
+```{r effic}
+winpay <- winpay %>% 
+  mutate(expected_win_pct = 50 + 2.5 * Payroll_Z_Score) %>% 
+  mutate(efficiency = win_percentage - expected_win_pct) %>% 
+  mutate(team = 
+           ifelse(team %in% c('OAK', 'BOS', 'NYA', 'ATL', 'TBA'), team, 'OTHER'))
+
+winpay %>% 
+  ggplot(aes(x=year, y=efficiency, color=team)) +
+  geom_smooth(method=loess)
+```
+
+#### Question 4. What can you learn from this plot compared to the set of plots you looked at in Question 2 and 3? How good was Oakland’s efficiency during the Moneyball period?
