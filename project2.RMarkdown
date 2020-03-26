@@ -1,7 +1,8 @@
 ---
+title: "Report"
 output:
-  pdf_document: default
-  html_document: default
+  pdf_document:
+    latex_engine: xelatex
 ---
 # Data Wrangling and Exploratory Data Analysis
 
@@ -11,7 +12,6 @@ output:
 library(tidyverse)
 library(RSQLite)
 db <- DBI::dbConnect(RSQLite::SQLite(), "lahman2016.sqlite")
-DBI::dbListTables(db)
 ```
 
 ### Problem 1 Using SQL, write a query to compute the total payroll and winning percentage (number of wins / number of games * 100) for each team (that is, for each teamID and yearID combination). You should include other columns that will help when performing EDA later on (e.g., franchise ids, number of wins, number of games).
