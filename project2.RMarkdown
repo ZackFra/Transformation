@@ -16,25 +16,24 @@ DBI::dbListTables(db)
 
 ### Problem 1 Using SQL, write a query to compute the total payroll and winning percentage (number of wins / number of games * 100) for each team (that is, for each teamID and yearID combination). You should include other columns that will help when performing EDA later on (e.g., franchise ids, number of wins, number of games).
 
-```{sql run_query, connection=db, output.var="payroll_df"}
-select Teams.teamID as teamID, 
-  sum(Salaries.salary) as total_payroll,
+
+``` {sql win_pay, connection=db, output.var="winpay"}
+select Salaries.yearID as year, 
+  Teams.teamID as team, 
   (cast(sum(Teams.W) as float) / sum(Teams.G))*100 as win_percentage,
-  sum(Teams.W) as total_wins,
-  sum(Teams.G) as total_games
+  franchName,
+  sum(Salaries.salary) as payroll
 from Salaries
-join Teams 
-on Salaries.teamID = Teams.teamID
+join Teams
+on Salaries.teamID = Teams.teamID 
 and Salaries.yearID = Teams.yearID
-where Salaries.yearID between 1990 and 2014
-group by Teams.teamID
+join TeamsFranchises
+on Teams.franchID = TeamsFranchises.franchID
+where year between 1990 and 2014
+group by year, team
+
 ```
 
-### Results
-```{r print_result}
-payroll_df %>%
-  head()
-```
 
 # Exploratory data analysis
 
@@ -58,10 +57,10 @@ group by year, team
 ``` {r plot}
 library(ggplot2)
 
-dist_df %>% 
+winpay %>% 
   group_by(team) %>% 
   mutate(log_payroll = log(payroll)) %>% 
-  mutate(yearRange = ifelse(1989 < year & year <= 1994, paste("1989-1994"), 
+  mutate(yearRange = ifelse(1989 < year & year <= 1994, paste("1989-1994"),
                 ifelse(1994 < year & year <= 1999, paste("1994-1999"),
                 ifelse(1999 < year & year <= 2004, paste("1999-2004"),
                 ifelse(2004 < year & year <= 2009, paste("2004-2009"),
@@ -107,23 +106,6 @@ max_df %>%
 
 ### Problem 4. Write code to discretize year into five time periods (e.g., using the cut function with parameter breaks=5 (in R, bins=5 in python) and then make a scatterplot showing mean winning percentage (y-axis) vs. mean payroll (x-axis) for each of the five time periods. You could add a regression line (using geom_smooth(method=lm)) in each scatter plot to ease interpretation. Note: look at the discussion on faceting in the visualization EDA lecture notes.
 
-``` {sql win_pay, connection=db, output.var="winpay"}
-select Salaries.yearID as year, 
-  Teams.teamID as team, 
-  (cast(sum(Teams.W) as float) / sum(Teams.G))*100 as win_percentage,
-  franchName,
-  sum(Salaries.salary) as payroll
-from Salaries
-join Teams
-on Salaries.teamID = Teams.teamID 
-and Salaries.yearID = Teams.yearID
-join TeamsFranchises
-on Teams.franchID = TeamsFranchises.franchID
-where year between 1990 and 2014
-group by year, team
-
-```
-
 
 ```{r time_periods}
 
@@ -160,7 +142,8 @@ for(i in 1990:2014) {
 
 
 winpay <- winpay %>% 
-  mutate(Payroll_Z_Score = (payroll - payroll_mew[year - 1990 + 1]) / payroll_sigma[year - 1990 + 1])
+  mutate(Payroll_Z_Score = 
+(payroll - payroll_mew[year - 1990 + 1]) / payroll_sigma[year - 1990 + 1])
 
 ```
 
@@ -178,6 +161,8 @@ winpay %>%
 ```
 
 #### Question 3. Discuss how the plots from Problem 4 and Problem 6 reflect the transformation you did on the payroll variable. Consider data range, center and spread along with observed correlation in your discussion. Some of these change after the transformation, others don’t.
+
+The most obvious difference is the slope of the trendline has noticably increased, albeit not dramatically. The variance of the data has increased slightly, contributing to the increase in the trendline, but is still nearly the same. Each graph is also centered around x=0, whereas the graphs in problem 4 each had their own center-point making them harder to compare. Also each graph shows that as x=0, the win percentage is consistently 50%, implying when a team has the average payroll amount, they win 50% of the time.
 
 # Expected wins
 
@@ -199,7 +184,9 @@ winpay <- winpay %>%
   mutate(expected_win_pct = 50 + 2.5 * Payroll_Z_Score) %>% 
   mutate(efficiency = win_percentage - expected_win_pct) %>% 
   mutate(team = 
-           ifelse(team %in% c('OAK', 'BOS', 'NYA', 'ATL', 'TBA'), team, 'OTHER'))
+           ifelse(
+             team %in% c('OAK', 'BOS', 'NYA', 'ATL', 'TBA'), 
+             team, 'OTHER'))
 
 winpay %>% 
   ggplot(aes(x=year, y=efficiency, color=team)) +
@@ -207,3 +194,5 @@ winpay %>%
 ```
 
 #### Question 4. What can you learn from this plot compared to the set of plots you looked at in Question 2 and 3? How good was Oakland’s efficiency during the Moneyball period?
+
+This plot provides significantly more valuable information than the plots from questions 2 and 3. This plot shows which teams are worth analyzing based on their efficiency throughout time. For example, if I were going to start a baseball team, I would analyze Oakland's strategies for team building in 2002, where they had an efficiency of 16.3% despite consistently being the lower end of the payroll spectrum. Oakland's efficiency during the Moneyball period was excellent. As this chart shows, Oakland started off with about average efficiency, then gradually throughout the 1990s their win percentage went up and up until it peaked in 2002. During the Moneyball period Oakland's win percentage was substantially above average and their win percentage stayed above average at least from roughly 1997 to 2015.
