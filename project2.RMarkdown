@@ -35,7 +35,7 @@ group by year, team
 ```
 
 ```{r display}
-winpay
+head(winpay)
 ```
 # Exploratory data analysis
 
